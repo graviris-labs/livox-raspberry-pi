@@ -1,37 +1,37 @@
-FROM arm64v8/debian:bullseye-slim
+FROM ros:humble-ros-base
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    git \
-    libboost-system-dev \
-    libboost-thread-dev \
-    libapr1-dev \
-    libssl-dev \
-    libcurl4-openssl-dev \
-    pkg-config \
-    python3 \
     python3-pip \
+    python3-colcon-common-extensions \
+    ros-humble-pcl-conversions \
+    ros-humble-pcl-ros \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone Livox SDK2
-WORKDIR /opt
-RUN git clone https://github.com/Livox-SDK/Livox-SDK2.git
+# Create ROS workspace
+WORKDIR /ros2_ws
+RUN mkdir -p src
 
-# Build Livox SDK2
-WORKDIR /opt/Livox-SDK2
-RUN mkdir build && cd build && cmake .. && make -j4 && make install
+# Clone Livox ROS 2 driver
+WORKDIR /ros2_ws/src
+RUN git clone https://github.com/Livox-SDK/livox_ros2_driver.git
 
-# Create directories
-RUN mkdir -p /opt/livox_config
-RUN mkdir -p /opt/livox_data
+# Build the workspace
+WORKDIR /ros2_ws
+RUN . /opt/ros/humble/setup.sh && \
+    colcon build --symlink-install
 
-# Copy configuration file
-COPY config/mid360_config.json /opt/livox_config/
+# Create a directory for data
+RUN mkdir -p /data
 
-# Set working directory
-WORKDIR /opt/Livox-SDK2/build/samples/livox_lidar_quick_start
+# Set up entrypoint
+COPY ./entrypoint.sh /
+RUN chmod +x /entrypoint.sh
 
-# Command to run when container starts
-CMD ["./livox_lidar_quick_start", "/opt/livox_config/mid360_config.json"]
+# Make sure ROS 2 environment is sourced in .bashrc
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
+RUN echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash", "-c", "source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash && ros2 launch livox_ros2_driver livox_lidar_launch.py lidar_publish_freq:=10.0 user_config_path:=/config/mid360_config.json"]

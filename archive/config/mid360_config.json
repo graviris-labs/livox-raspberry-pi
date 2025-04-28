@@ -1,0 +1,32 @@
+{
+    "lidar_net_info": {
+      "cmd_data_port": 56100,
+      "push_msg_port": 56200,
+      "point_cloud_port": 56300,
+      "imu_data_port": 56400,
+      "log_data_port": 56500
+    },
+    "host_net_info": {
+      "cmd_data_ip": "",
+      "cmd_data_port": 56101,
+      "push_msg_ip": "",
+      "push_msg_port": 56201,
+      "point_cloud_ip": "",
+      "point_cloud_port": 56301,
+      "imu_data_ip": "",
+      "imu_data_port": 56401,
+      "log_data_ip": "",
+      "log_data_port": 56501
+    },
+    "lidar_config": [
+      {
+        "broadcast_code": "47MDMBV0030199",
+        "enable_connect": true,
+        "enable_fan": true,
+        "return_mode": 0,
+        "coordinate": 0,
+        "imu_rate": 1,
+        "extrinsic_parameter_source": 0
+      }
+    ]
+  }
