@@ -7,4 +7,3 @@ services:
     volumes:
       - ./config:/config
       - ./data:/data
-    command: bash -c "source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash && ros2 launch livox_ros2_driver livox_lidar_launch.py lidar_publish_freq:=10.0 user_config_path:=/config/mid360_config.json"

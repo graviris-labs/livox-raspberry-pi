@@ -1,15 +1,9 @@
 #!/bin/bash
 set -e
 
-# Source ROS 2 environment
+# Source ROS2
 source /opt/ros/humble/setup.bash
-if [ -f /ros2_ws/install/setup.bash ]; then
-  source /ros2_ws/install/setup.bash
-fi
+source /ros2_ws/install/setup.bash
 
-# Print debug information
-echo "PATH: $PATH"
-which ros2 || echo "ros2 command not found"
-
-# Execute command
+# Execute CMD
 exec "$@"

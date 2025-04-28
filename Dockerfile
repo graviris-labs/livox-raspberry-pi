@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /ros2_ws
 RUN mkdir -p src
 
-# Clone Livox ROS 2 driver
+# Clone Livox ROS2 driver (use master branch, NOT tag)
 WORKDIR /ros2_ws/src
 RUN git clone https://github.com/Livox-SDK/livox_ros2_driver.git
 
@@ -22,7 +22,7 @@ WORKDIR /ros2_ws
 RUN . /opt/ros/humble/setup.sh && \
     colcon build --symlink-install
 
-# Create a directory for data
+# Create directories
 RUN mkdir -p /data
 
 # Set up entrypoint
@@ -34,4 +34,6 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
 RUN echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["bash", "-c", "source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash && ros2 launch livox_ros2_driver livox_lidar_launch.py lidar_publish_freq:=10.0 user_config_path:=/config/mid360_config.json"]
+
+# Set default CMD
+CMD ["bash", "-c", "source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash && ros2 run livox_ros2_driver livox_ros2_driver_node --ros-args -p auto_connect:=false -p user_config_path:=/config/livox_lidar_config.json"]
