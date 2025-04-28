@@ -1,0 +1,10 @@
+version: '3'
+services:
+  livox:
+    build: .
+    container_name: livox_lidar
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ./config:/opt/livox_config
+      - ./data:/opt/livox_data

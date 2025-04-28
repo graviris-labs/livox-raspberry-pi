@@ -1,0 +1,22 @@
+FROM arm64v8/debian:bullseye-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-dev \
+    python3-matplotlib \
+    python3-numpy \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a directory for visualization scripts
+RUN mkdir -p /opt/visualization
+
+# Copy the Python visualization script
+COPY ./visualization/python_viewer.py /opt/visualization/
+RUN chmod +x /opt/visualization/python_viewer.py
+
+# Set working directory
+WORKDIR /opt/visualization
+
+# Command to run when container starts
+CMD ["python3", "python_viewer.py"]
