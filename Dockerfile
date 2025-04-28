@@ -27,6 +27,9 @@ RUN mkdir build && cd build && cmake .. && make -j4 && make install
 RUN mkdir -p /opt/livox_config
 RUN mkdir -p /opt/livox_data
 
+# Copy configuration file
+COPY config/mid360_config.json /opt/livox_config/
+
 # Set working directory
 WORKDIR /opt/Livox-SDK2/build/samples/livox_lidar_quick_start
 
