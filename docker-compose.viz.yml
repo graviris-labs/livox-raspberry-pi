@@ -1,0 +1,24 @@
+version: '3'
+services:
+  livox:
+    build: .
+    container_name: livox_lidar
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ./config:/opt/livox_config
+      - ./data:/opt/livox_data
+  
+  visualizer:
+    build:
+      context: .
+      dockerfile: Dockerfile.python-visualizer
+    container_name: livox_visualizer
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      - DISPLAY=/private/tmp/com.apple.launchd.MdQXjDjby6/org.xquartz:0
+    volumes:
+      - ./config:/opt/livox_config
+      - ./data:/opt/livox_data
+      - /tmp/.X11-unix:/tmp/.X11-unix

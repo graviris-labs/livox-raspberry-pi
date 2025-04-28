@@ -27,8 +27,7 @@ RUN mkdir -p /opt/livox_config
 # Create a directory for output data
 RUN mkdir -p /opt/livox_data
 
-# Copy sample config
-RUN cp /opt/Livox-SDK2/samples/livox_lidar_quick_start/livox_lidar_config.json /opt/livox_config/
+# Instead of copying from a non-existent location, we'll create the config file in a later step
 
 # Set working directory
 WORKDIR /opt/Livox-SDK2/build/samples/livox_lidar_quick_start
