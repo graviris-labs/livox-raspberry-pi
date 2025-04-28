@@ -18,7 +18,7 @@
       "log_data_ip": "",
       "log_data_port": 56501
     },
-    "lidar_configs": [
+    "lidar_config": [
       {
         "broadcast_code": "",
         "enable_connect": true,
