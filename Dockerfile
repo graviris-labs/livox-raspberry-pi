@@ -30,10 +30,7 @@ RUN apt-get update && apt-get install -y \
 # Add ROS2 Humble
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
     echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list && \
-    apt-get update
-
-# Install ROS2 and ROS-specific packages
-RUN apt-get install -y \
+    apt-get update && apt-get install -y \
     ros-humble-ros-base \
     ros-humble-pcl-conversions \
     ros-humble-pcl-msgs \
@@ -42,7 +39,7 @@ RUN apt-get install -y \
     python3-colcon-common-extensions
 
 # Fix empy bug for ROS2
-RUN pip3 uninstall -y empy && pip3 install empy==3.3.4
+RUN pip3 install empy==3.3.4
 
 # Setup ROS2 env
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
@@ -54,26 +51,15 @@ RUN mkdir -p src
 # Clone the livox_ros_driver2 which is more compatible with ROS2 Humble
 RUN git clone https://github.com/Livox-SDK/livox_ros_driver2.git src/livox_ros_driver2
 
-# First patch missing include in SDK2
+# Build the ROS2 driver
 WORKDIR /ros2_ws/src/livox_ros_driver2
-RUN mkdir -p SDK2_patch
-WORKDIR /ros2_ws/src/livox_ros_driver2/SDK2_patch
-RUN echo '#include <memory>' > memory_include.patch
-
-# Build the ROS2 driver using the provided build script
-WORKDIR /ros2_ws/src/livox_ros_driver2
-RUN sed -i 's/livox_sdk2\/sdk_core\/src\/base\/thread_base.h/thread_base.h/g' build.sh
-RUN sed -i '/git checkout master/a \\t\tcat \/ros2_ws\/src\/livox_ros_driver2\/SDK2_patch\/memory_include.patch >> ${BUILD_PATH}\/src\/base\/thread_base.h' build.sh
 RUN chmod +x build.sh
 RUN bash ./build.sh humble
 
-# Copy config file
-COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros_driver2/config/livox_lidar_config.json
+# Verify that the build was successful
+RUN ls -la /ros2_ws/install
 
-# Source setup and make it part of the entrypoint
-RUN echo 'source /ros2_ws/install/setup.bash' >> ~/.bashrc
-
-# Add entrypoint
+# Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
