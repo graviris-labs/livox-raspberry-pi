@@ -1,0 +1,13 @@
+{
+    "lidar_list": {
+      "mid360_1": {
+        "user_config": {
+          "lidar_ip": "192.168.1.199",
+          "cmd_port": 56100,
+          "imu_port": 56400,
+          "data_port": 56300
+        }
+      }
+    }
+  }
+  

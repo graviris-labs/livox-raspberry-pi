@@ -1,30 +1,49 @@
-FROM ros:noetic-ros-base
+FROM ubuntu:22.04
 
-# Install dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install basic utilities
 RUN apt-get update && apt-get install -y \
-    python3-pip \
-    python3-catkin-tools \
-    ros-noetic-pcl-conversions \
-    ros-noetic-pcl-ros \
+    locales \
+    lsb-release \
+    gnupg2 \
+    curl \
+    wget \
     git \
-    nano \
-    && rm -rf /var/lib/apt/lists/*
+    sudo \
+    python3-pip \
+    python3-colcon-common-extensions \
+    build-essential \
+    libpcl-dev \
+    libboost-all-dev \
+    && locale-gen en_US en_US.UTF-8 \
+    && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 
-# Create catkin workspace
-WORKDIR /catkin_ws
-RUN mkdir -p src
+# Install ROS2 Humble
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - \
+    && echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list \
+    && apt-get update \
+    && apt-get install -y ros-humble-ros-base ros-humble-rmw-fastrtps-cpp ros-humble-rmw-cyclonedds-cpp \
+    && apt-get clean
 
-# Clone Livox ROS driver
-WORKDIR /catkin_ws/src
-RUN git clone https://github.com/Livox-SDK/livox_ros_driver.git
+# Source ROS2
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
 
-# Build
-WORKDIR /catkin_ws
-RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
+# Create workspace
+WORKDIR /ros2_ws
+RUN mkdir src
 
-# Auto-source setup
-RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
-RUN echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
+# Clone Livox ROS2 Driver
+RUN git clone https://github.com/Livox-SDK/livox_ros2_driver.git src/livox_ros2_driver
 
-# Default bash shell
-ENTRYPOINT ["bash"]
+# Copy config file into container
+COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros2_driver/livox_ros2_driver/config/livox_lidar_config.json
+
+# Build workspace
+RUN . /opt/ros/humble/setup.sh && colcon build --symlink-install
+
+# Copy entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
