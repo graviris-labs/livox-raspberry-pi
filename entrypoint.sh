@@ -1,9 +1,26 @@
 #!/bin/bash
 set -e
 
-# Source ROS1 env and workspace
-source /opt/ros/noetic/setup.bash
-source ~/catkin_ws/devel/setup.bash
+# Source ROS1 environment
+if [ -f "/opt/ros/noetic/setup.bash" ]; then
+    source /opt/ros/noetic/setup.bash
+else
+    echo "ERROR: /opt/ros/noetic/setup.bash not found!"
+    exit 1
+fi
 
-# Run the driver with the config
+# Source workspace
+if [ -f "/home/livox/catkin_ws/devel/setup.bash" ]; then
+    source /home/livox/catkin_ws/devel/setup.bash
+else
+    echo "Workspace not built, attempting to build..."
+    cd /home/livox/catkin_ws && catkin_make
+    source /home/livox/catkin_ws/devel/setup.bash
+fi
+
+# Optional: auto-source in interactive shells too
+echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
+echo "source /home/livox/catkin_ws/devel/setup.bash" >> /root/.bashrc
+
+# Launch driver
 exec roslaunch livox_ros_driver2 msg_MID360.launch
