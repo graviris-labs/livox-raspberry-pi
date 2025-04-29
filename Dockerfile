@@ -51,7 +51,6 @@ RUN mkdir -p src
 # Clone Livox ROS2 Driver 2
 RUN git clone https://github.com/Livox-SDK/livox_ros_driver2.git src/livox_ros_driver2
 WORKDIR /ros2_ws/src/livox_ros_driver2
-RUN git checkout ros2  # ✅ VERY important! Livox Driver2 requires ros2 branch!
 
 # Copy your config
 WORKDIR /ros2_ws
