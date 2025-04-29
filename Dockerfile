@@ -49,40 +49,41 @@ RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 WORKDIR /ros2_ws
 RUN mkdir -p src
 
-# Clone Livox ROS2 driver
+# Clone Livox ROS2 driver - Use the stable version that works with ROS2 Humble
 RUN git clone https://github.com/Livox-SDK/livox_ros2_driver.git src/livox_ros2_driver
 
-# Upgrade Livox SDK inside driver
+# Instead of using the SDK inside the driver, build and install it separately
+WORKDIR /tmp
+RUN git clone https://github.com/Livox-SDK/Livox-SDK.git
+
+# Add missing include to Livox SDK
+WORKDIR /tmp/Livox-SDK/sdk_core/src/base
+RUN sed -i '/#include "noncopyable.h"/a #include <memory>' thread_base.h
+
+# Build and install Livox SDK
+WORKDIR /tmp/Livox-SDK
+RUN mkdir build && cd build && \
+    cmake .. && \
+    make -j4 && \
+    make install
+
+# Make sure the installed library is found
+RUN ldconfig
+
+# Now modify the CMake files in the ROS2 driver to find the SDK we just installed
 WORKDIR /ros2_ws/src/livox_ros2_driver
+# Remove the SDK that comes with the driver
 RUN rm -rf livox_sdk_vendor
-RUN git clone https://github.com/Livox-SDK/Livox-SDK.git livox_sdk_vendor
 
-# FIX: Add missing include to thread_base.h file
-# This is done directly using echo to add the include line after noncopyable.h
-WORKDIR /ros2_ws/src/livox_ros2_driver/livox_sdk_vendor/sdk_core/src/base
-RUN cp thread_base.h thread_base.h.backup && \
-    grep -B 1000 -m 1 "#include \"noncopyable.h\"" thread_base.h > thread_base.h.top && \
-    echo "#include <memory>" > thread_base.h.include && \
-    grep -A 1000 "#include \"noncopyable.h\"" thread_base.h > thread_base.h.bottom && \
-    cat thread_base.h.top thread_base.h.include thread_base.h.bottom > thread_base.h && \
-    rm thread_base.h.top thread_base.h.include thread_base.h.bottom
-
-# Also add missing include to thread_base.cpp file just to be safe
-WORKDIR /ros2_ws/src/livox_ros2_driver/livox_sdk_vendor/sdk_core/src/base
-RUN cp thread_base.cpp thread_base.cpp.backup && \
-    grep -B 1000 -m 1 "#include <thread>" thread_base.cpp > thread_base.cpp.top && \
-    echo "#include <memory>" > thread_base.cpp.include && \
-    grep -A 1000 "#include <thread>" thread_base.cpp > thread_base.cpp.bottom && \
-    cat thread_base.cpp.top thread_base.cpp.include thread_base.cpp.bottom > thread_base.cpp && \
-    rm thread_base.cpp.top thread_base.cpp.include thread_base.cpp.bottom
-
-# Return to workspace
-WORKDIR /ros2_ws
+# Modify CMakeLists.txt to look for SDK in system path
+WORKDIR /ros2_ws/src/livox_ros2_driver
+RUN sed -i 's/find_package(livox_sdk REQUIRED)/find_package(PkgConfig REQUIRED)\npkg_check_modules(livox_sdk REQUIRED IMPORTED_TARGET livox_sdk)/' CMakeLists.txt
 
 # Copy config file
 COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros2_driver/livox_ros2_driver/config/livox_lidar_config.json
 
 # Build workspace
+WORKDIR /ros2_ws
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --symlink-install"
 
 # Add entrypoint
