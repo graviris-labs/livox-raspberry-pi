@@ -18,9 +18,9 @@ else
     source /home/livox/catkin_ws/devel/setup.bash
 fi
 
-# Optional: auto-source in interactive shells too
-echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
-echo "source /home/livox/catkin_ws/devel/setup.bash" >> /root/.bashrc
+echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+echo "source /home/livox/catkin_ws/devel/setup.bash" >> ~/.bashrc
+exec bash
 
 # Launch driver
 exec roslaunch livox_ros_driver2 msg_MID360.launch
