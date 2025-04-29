@@ -21,5 +21,8 @@ fi
 grep -qxF 'source /opt/ros/noetic/setup.bash' ~/.bashrc || echo 'source /opt/ros/noetic/setup.bash' >> ~/.bashrc
 grep -qxF 'source /home/livox/catkin_ws/devel/setup.bash' ~/.bashrc || echo 'source /home/livox/catkin_ws/devel/setup.bash' >> ~/.bashrc
 
+export ROS_MASTER_URI=http://192.168.50.191:11311
+export ROS_HOSTNAME=192.168.50.191
+
 # Launch driver
 exec roslaunch livox_ros_driver2 msg_MID360.launch

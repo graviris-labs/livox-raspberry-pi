@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  lidar_listener:
+    build: .
+    container_name: lidar_listener
+    network_mode: host
+    volumes:
+      - ./data:/data  # SQLite DB stored here
+    tty: true
+    stdin_open: true
