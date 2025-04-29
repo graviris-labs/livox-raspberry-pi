@@ -1,0 +1,25 @@
+# ROS2 build artifacts
+build/
+install/
+log/
+
+# VSCode files (if you use VSCode)
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Docker stuff
+*.tar
+docker-compose.override.yml
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*~
+*.swp
+*.swo
