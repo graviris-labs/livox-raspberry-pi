@@ -20,6 +20,7 @@
     },
     "lidar_config": [
       {
+        "broadcast_code": "47MDMBV0030199",
         "lidar_ip": "192.168.1.199",
         "cmd_port": 56100,
         "push_port": 56200,
