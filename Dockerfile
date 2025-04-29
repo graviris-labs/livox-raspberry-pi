@@ -12,12 +12,14 @@ RUN apt-get update && apt-get install -y \
     git \
     sudo \
     python3-pip \
-    python3-colcon-common-extensions \
     build-essential \
     libpcl-dev \
     libboost-all-dev \
     && locale-gen en_US en_US.UTF-8 \
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+
+# Install colcon via pip
+RUN pip3 install -U colcon-common-extensions
 
 # Install ROS2 Humble
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - \
