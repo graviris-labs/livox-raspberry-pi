@@ -5,16 +5,10 @@ services:
     build: .
     container_name: livox_ros2_driver
     network_mode: "host"
-    ports:
-      - "56100:56100/udp"
-      - "56200:56200/udp"
-      - "56300:56300/udp"
-      - "56400:56400/udp"
-      - "56500:56500/udp"
     tty: true
     stdin_open: true
     environment:
-      - DISPLAY=$DISPLAY
+      - DISPLAY=${DISPLAY}
     volumes:
-          - /tmp/.X11-unix:/tmp/.X11-unix
-          - ./config:/ros2_ws/src/livox_ros_driver2/config
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./config:/ros2_ws/src/livox_ros_driver2/config:rw
