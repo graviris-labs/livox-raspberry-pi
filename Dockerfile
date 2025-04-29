@@ -21,6 +21,9 @@ RUN apt-get update && apt-get install -y \
 # Install colcon via pip
 RUN pip3 install -U colcon-common-extensions
 
+# Fix empy package for ROS2 Humble
+RUN pip3 uninstall -y empy && pip3 install empy==3.3.4
+
 # Install ROS2 Humble
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - \
     && echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list \
