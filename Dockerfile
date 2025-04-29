@@ -22,39 +22,46 @@ RUN apt-get update && apt-get install -y \
     libpcl-dev \
     libboost-all-dev \
     libyaml-cpp-dev \
-    cmake
+    cmake \
+    net-tools
 
-# Add ROS 2 Humble repo and keys
+# Add ROS2 Humble
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
     echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list && \
     apt-get update
 
-# Install ROS 2 Humble + ROS PCL dependencies
+# Install ROS2 and ROS-specific packages
 RUN apt-get install -y \
     ros-humble-ros-base \
-    ros-humble-rmw-fastrtps-cpp \
-    ros-humble-rmw-cyclonedds-cpp \
     ros-humble-pcl-conversions \
     ros-humble-pcl-msgs \
+    ros-humble-rmw-fastrtps-cpp \
+    ros-humble-rmw-cyclonedds-cpp \
     python3-colcon-common-extensions
 
-# Fix empy bug
+# Fix empy bug for ROS2
 RUN pip3 uninstall -y empy && pip3 install empy==3.3.4
 
-# Source ROS2
+# Setup ROS2 env
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 
-# Set workspace
+# Create workspace
 WORKDIR /ros2_ws
 RUN mkdir -p src
 
 # Clone Livox ROS2 driver
 RUN git clone https://github.com/Livox-SDK/livox_ros2_driver.git src/livox_ros2_driver
 
-# Copy config into the driver package
+# Upgrade Livox SDK inside driver
+WORKDIR /ros2_ws/src/livox_ros2_driver
+RUN rm -rf livox_sdk_vendor
+RUN git clone https://github.com/Livox-SDK/Livox-SDK.git livox_sdk_vendor
+WORKDIR /ros2_ws
+
+# Copy config file
 COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros2_driver/livox_ros2_driver/config/livox_lidar_config.json
 
-# Build the workspace
+# Build workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --symlink-install"
 
 # Add entrypoint
