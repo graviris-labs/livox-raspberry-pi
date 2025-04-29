@@ -57,9 +57,8 @@ RUN . /opt/ros/noetic/setup.sh && \
 
 COPY ./MID360_config.json ${HOME}/catkin_ws/src/livox_ros_driver2/config/
 
-# Add entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Default to bash for dev/debug
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash", "/entrypoint.sh"]
+
