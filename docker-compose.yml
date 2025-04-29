@@ -7,5 +7,11 @@ services:
     network_mode: "host"
     volumes:
       - ./config:/ros2_ws/src/livox_ros2_driver/livox_ros2_driver/config
+    ports:
+      - "56100:56100/udp"
+      - "56200:56200/udp"
+      - "56300:56300/udp"
+      - "56400:56400/udp"
+      - "56500:56500/udp"
     tty: true
     stdin_open: true

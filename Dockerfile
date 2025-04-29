@@ -61,6 +61,10 @@ WORKDIR /ros2_ws
 # Copy config file
 COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros2_driver/livox_ros2_driver/config/livox_lidar_config.json
 
+# Copy and run the fix script for missing #include <memory>
+COPY fix_thread_base.sh /tmp/fix_thread_base.sh
+RUN chmod +x /tmp/fix_thread_base.sh && /tmp/fix_thread_base.sh
+
 # Build workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --symlink-install"
 
