@@ -62,7 +62,7 @@ RUN sed -i '/#include "noncopyable.h"/a #include <memory>' thread_base.h
 
 # Build and install Livox SDK
 WORKDIR /tmp/Livox-SDK
-RUN mkdir build && cd build && \
+RUN rm -rf build && mkdir build && cd build && \
     cmake .. && \
     make -j4 && \
     make install
@@ -75,9 +75,15 @@ WORKDIR /ros2_ws/src/livox_ros2_driver
 # Remove the SDK that comes with the driver
 RUN rm -rf livox_sdk_vendor
 
-# Modify CMakeLists.txt to look for SDK in system path
-WORKDIR /ros2_ws/src/livox_ros2_driver
-RUN sed -i 's/find_package(livox_sdk REQUIRED)/find_package(PkgConfig REQUIRED)\npkg_check_modules(livox_sdk REQUIRED IMPORTED_TARGET livox_sdk)/' CMakeLists.txt
+# Rather than modifying CMakeLists.txt, let's create a proper symbolic link to the system SDK
+RUN mkdir -p livox_sdk_vendor && \
+    ln -s /usr/local/lib/liblivox_sdk_static.a livox_sdk_vendor/liblivox_sdk_static.a && \
+    ln -s /usr/local/include/livox_sdk.h livox_sdk_vendor/livox_sdk.h && \
+    ln -s /usr/local/include/livox_def.h livox_sdk_vendor/livox_def.h && \
+    mkdir -p livox_sdk_vendor/include && \
+    mkdir -p livox_sdk_vendor/lib && \
+    ln -s /usr/local/include livox_sdk_vendor/include/livox_sdk && \
+    ln -s /usr/local/lib/liblivox_sdk_static.a livox_sdk_vendor/lib/liblivox_sdk_static.a
 
 # Copy config file
 COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros2_driver/livox_ros2_driver/config/livox_lidar_config.json
