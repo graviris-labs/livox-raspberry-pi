@@ -3,7 +3,7 @@ version: '3.8'
 services:
   livox-ros2:
     build: .
-    container_name: livox-ros2
+    container_name: livox_ros2_driver
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -12,3 +12,5 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ./config:/ros2_ws/src/livox_ros_driver2/config:rw
+    # Add this to prevent the ContainerConfig error
+    image: livox-raspberry-pi_livox-ros2
