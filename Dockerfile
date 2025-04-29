@@ -56,14 +56,31 @@ RUN git clone https://github.com/Livox-SDK/livox_ros2_driver.git src/livox_ros2_
 WORKDIR /ros2_ws/src/livox_ros2_driver
 RUN rm -rf livox_sdk_vendor
 RUN git clone https://github.com/Livox-SDK/Livox-SDK.git livox_sdk_vendor
+
+# FIX: Add missing include to thread_base.h file
+# This is done directly using echo to add the include line after noncopyable.h
+WORKDIR /ros2_ws/src/livox_ros2_driver/livox_sdk_vendor/sdk_core/src/base
+RUN cp thread_base.h thread_base.h.backup && \
+    grep -B 1000 -m 1 "#include \"noncopyable.h\"" thread_base.h > thread_base.h.top && \
+    echo "#include <memory>" > thread_base.h.include && \
+    grep -A 1000 "#include \"noncopyable.h\"" thread_base.h > thread_base.h.bottom && \
+    cat thread_base.h.top thread_base.h.include thread_base.h.bottom > thread_base.h && \
+    rm thread_base.h.top thread_base.h.include thread_base.h.bottom
+
+# Also add missing include to thread_base.cpp file just to be safe
+WORKDIR /ros2_ws/src/livox_ros2_driver/livox_sdk_vendor/sdk_core/src/base
+RUN cp thread_base.cpp thread_base.cpp.backup && \
+    grep -B 1000 -m 1 "#include <thread>" thread_base.cpp > thread_base.cpp.top && \
+    echo "#include <memory>" > thread_base.cpp.include && \
+    grep -A 1000 "#include <thread>" thread_base.cpp > thread_base.cpp.bottom && \
+    cat thread_base.cpp.top thread_base.cpp.include thread_base.cpp.bottom > thread_base.cpp && \
+    rm thread_base.cpp.top thread_base.cpp.include thread_base.cpp.bottom
+
+# Return to workspace
 WORKDIR /ros2_ws
 
 # Copy config file
 COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros2_driver/livox_ros2_driver/config/livox_lidar_config.json
-
-# Copy and run the fix script for missing #include <memory>
-COPY fix_thread_base.sh /tmp/fix_thread_base.sh
-RUN chmod +x /tmp/fix_thread_base.sh && /tmp/fix_thread_base.sh
 
 # Build workspace
 RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --symlink-install"
