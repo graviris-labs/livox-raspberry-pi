@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y locales && \
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
-# Install base utilities
+# Install basic utilities
 RUN apt-get update && apt-get install -y \
     curl \
     gnupg2 \
@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y \
     vim \
     libapr1-dev
 
-# Add ROS2 Humble
+# Add ROS2 Humble repo
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
     echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list && \
     apt-get update && apt-get install -y \
@@ -36,30 +36,31 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | a
     ros-humble-pcl-msgs \
     ros-humble-rmw-fastrtps-cpp \
     ros-humble-rmw-cyclonedds-cpp \
-    ros-humble-ament-cmake-auto \
     python3-colcon-common-extensions
 
-# Fix empy bug for ROS2
+# Fix empy for ROS2
 RUN pip3 install empy==3.3.4
 
-# Setup ROS2 env
+# Setup ROS2
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 
 # Create workspace
 WORKDIR /ros2_ws
 RUN mkdir -p src
 
-# Clone the livox_ros_driver2 which is more compatible with ROS2 Humble
+# Clone Livox ROS2 Driver 2
 RUN git clone https://github.com/Livox-SDK/livox_ros_driver2.git src/livox_ros_driver2
+WORKDIR /ros2_ws/src/livox_ros_driver2
+RUN git checkout ros2  # ✅ VERY important! Livox Driver2 requires ros2 branch!
 
-# Copy config file
-COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros_driver2/config/
-
-# Build the ROS2 driver
+# Copy your config
 WORKDIR /ros2_ws
-RUN . /opt/ros/humble/setup.sh && colcon build --symlink-install
+COPY config/livox_lidar_config.json src/livox_ros_driver2/config/livox_lidar_config.json
 
-# Copy entrypoint script
+# Build
+RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --symlink-install"
+
+# Copy entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

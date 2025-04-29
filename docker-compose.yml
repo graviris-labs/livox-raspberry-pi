@@ -12,5 +12,3 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ./config:/ros2_ws/src/livox_ros_driver2/config:rw
-    # Add this to prevent the ContainerConfig error
-    image: livox-raspberry-pi_livox-ros2
