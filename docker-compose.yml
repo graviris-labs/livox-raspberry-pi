@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   livox_ros1:
     build: .
+    image: livox_ros1:latest
     container_name: livox_ros_driver
     network_mode: "host"
     tty: true
