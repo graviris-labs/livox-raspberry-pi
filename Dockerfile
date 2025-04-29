@@ -23,7 +23,9 @@ RUN apt-get update && apt-get install -y \
     libboost-all-dev \
     libyaml-cpp-dev \
     cmake \
-    net-tools
+    net-tools \
+    vim \
+    libapr1-dev
 
 # Add ROS2 Humble
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
@@ -49,48 +51,27 @@ RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 WORKDIR /ros2_ws
 RUN mkdir -p src
 
-# Clone Livox ROS2 driver - Use the stable version that works with ROS2 Humble
-RUN git clone https://github.com/Livox-SDK/livox_ros2_driver.git src/livox_ros2_driver
+# Clone the livox_ros_driver2 which is more compatible with ROS2 Humble
+RUN git clone https://github.com/Livox-SDK/livox_ros_driver2.git src/livox_ros_driver2
 
-# Instead of using the SDK inside the driver, build and install it separately
-WORKDIR /tmp
-RUN git clone https://github.com/Livox-SDK/Livox-SDK.git
+# First patch missing include in SDK2
+WORKDIR /ros2_ws/src/livox_ros_driver2
+RUN mkdir -p SDK2_patch
+WORKDIR /ros2_ws/src/livox_ros_driver2/SDK2_patch
+RUN echo '#include <memory>' > memory_include.patch
 
-# Add missing include to Livox SDK
-WORKDIR /tmp/Livox-SDK/sdk_core/src/base
-RUN sed -i '/#include "noncopyable.h"/a #include <memory>' thread_base.h
-
-# Build and install Livox SDK
-WORKDIR /tmp/Livox-SDK
-RUN rm -rf build && mkdir build && cd build && \
-    cmake .. && \
-    make -j4 && \
-    make install
-
-# Make sure the installed library is found
-RUN ldconfig
-
-# Now modify the CMake files in the ROS2 driver to find the SDK we just installed
-WORKDIR /ros2_ws/src/livox_ros2_driver
-# Remove the SDK that comes with the driver
-RUN rm -rf livox_sdk_vendor
-
-# Rather than modifying CMakeLists.txt, let's create a proper symbolic link to the system SDK
-RUN mkdir -p livox_sdk_vendor && \
-    ln -s /usr/local/lib/liblivox_sdk_static.a livox_sdk_vendor/liblivox_sdk_static.a && \
-    ln -s /usr/local/include/livox_sdk.h livox_sdk_vendor/livox_sdk.h && \
-    ln -s /usr/local/include/livox_def.h livox_sdk_vendor/livox_def.h && \
-    mkdir -p livox_sdk_vendor/include && \
-    mkdir -p livox_sdk_vendor/lib && \
-    ln -s /usr/local/include livox_sdk_vendor/include/livox_sdk && \
-    ln -s /usr/local/lib/liblivox_sdk_static.a livox_sdk_vendor/lib/liblivox_sdk_static.a
+# Build the ROS2 driver using the provided build script
+WORKDIR /ros2_ws/src/livox_ros_driver2
+RUN sed -i 's/livox_sdk2\/sdk_core\/src\/base\/thread_base.h/thread_base.h/g' build.sh
+RUN sed -i '/git checkout master/a \\t\tcat \/ros2_ws\/src\/livox_ros_driver2\/SDK2_patch\/memory_include.patch >> ${BUILD_PATH}\/src\/base\/thread_base.h' build.sh
+RUN chmod +x build.sh
+RUN bash ./build.sh humble
 
 # Copy config file
-COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros2_driver/livox_ros2_driver/config/livox_lidar_config.json
+COPY config/livox_lidar_config.json /ros2_ws/src/livox_ros_driver2/config/livox_lidar_config.json
 
-# Build workspace
-WORKDIR /ros2_ws
-RUN /bin/bash -c "source /opt/ros/humble/setup.bash && colcon build --symlink-install"
+# Source setup and make it part of the entrypoint
+RUN echo 'source /ros2_ws/install/setup.bash' >> ~/.bashrc
 
 # Add entrypoint
 COPY entrypoint.sh /entrypoint.sh
