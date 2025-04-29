@@ -8,25 +8,19 @@ source /opt/ros/humble/setup.bash
 echo "Checking ROS2 packages..."
 ros2 pkg list | grep livox
 
-echo "Checking if workspace was built properly..."
-ls -la /ros2_ws/install
-
-# Source the workspace (if it exists)
+# Source the workspace
 if [ -f "/ros2_ws/install/setup.bash" ]; then
     source /ros2_ws/install/setup.bash
     echo "Workspace sourced successfully"
 else
-    echo "ERROR: Workspace setup.bash not found"
-    # Try to build the workspace
-    echo "Trying to build the workspace..."
-    cd /ros2_ws
-    colcon build --symlink-install
-    
-    if [ -f "/ros2_ws/install/setup.bash" ]; then
-        source /ros2_ws/install/setup.bash
-        echo "Workspace built and sourced successfully"
+    echo "WARNING: Workspace setup.bash not found at expected location"
+    # Try to find it elsewhere
+    SETUP_FILE=$(find /ros2_ws -name "setup.bash" | head -1)
+    if [ -n "$SETUP_FILE" ]; then
+        source $SETUP_FILE
+        echo "Found and sourced workspace at $SETUP_FILE"
     else
-        echo "ERROR: Failed to build workspace"
+        echo "ERROR: Could not find workspace setup.bash"
         exit 1
     fi
 fi
@@ -35,11 +29,9 @@ fi
 echo "Checking ROS2 packages after sourcing workspace..."
 ros2 pkg list | grep livox
 
-# Check launch files
+# Check available launch files
 echo "Available launch files:"
-find /ros2_ws -name "*.py" | grep launch
+find /ros2_ws -name "*.py" | grep -i launch
 
-# Run Livox driver
-echo "Running Livox driver..."
-cd /ros2_ws
-ros2 launch livox_ros_driver2 rviz_MID360_launch.py
+# Run Livox driver with appropriate launch file
+echo "Running Livox

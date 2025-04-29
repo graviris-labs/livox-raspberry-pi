@@ -3,7 +3,7 @@ version: '3.8'
 services:
   livox-ros2:
     build: .
-    container_name: livox_ros2_driver
+    container_name: livox-ros2
     network_mode: "host"
     tty: true
     stdin_open: true
