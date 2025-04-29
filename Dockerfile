@@ -57,5 +57,9 @@ RUN . /opt/ros/noetic/setup.sh && \
 
 COPY ./MID360_config.json ${HOME}/catkin_ws/src/livox_ros_driver2/config/
 
-# Modified to not launch RViz which is GUI-based
-CMD ["bash", "-c", "source ${HOME}/catkin_ws/devel/setup.bash && roslaunch livox_ros_driver2 msg_MID360.launch"]
+# Add entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Default to bash for dev/debug
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  livox_ros1:
+    build: .
+    container_name: livox_ros_driver
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./MID360_config.json:/home/livox/catkin_ws/src/livox_ros_driver2/config/MID360_config.json
