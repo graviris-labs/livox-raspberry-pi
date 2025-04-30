@@ -27,10 +27,10 @@
     {
       "ip": "192.168.1.199",
       "pcl_data_type": 1,
-      "pattern_mode": 0,
+      "pattern_mode": 1,
       "enable_connect": true,
       "enable_fan": true,
-      "return_mode": 0,
+      "return_mode": 1,
       "coordinate": 0,
       "imu_rate": 1,
       "extrinsic_parameter_source": 0,

@@ -33,3 +33,35 @@ services:
     volumes:
       - ./data:/data  # Mount a directory for persistent storage
     restart: unless-stopped
+
+  sqlite-admin:
+    image: linuxserver/sqlitebrowser:latest
+    container_name: sqlite-admin
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - ${DB_DIR:-./data}:/data
+    ports:
+      - "${SQLITEBROWSER_PORT:-3000}:3000"
+    restart: unless-stopped
+
+  # 3D Visualizer for Livox data from SQLite
+  livox-visualizer:
+    build:
+      context: ./visualizer
+      dockerfile: Dockerfile
+    container_name: livox-visualizer
+    depends_on:
+      - mqtt_consumer
+    environment:
+      - DB_PATH=/data/livox_data.db
+      - UPDATE_INTERVAL=1000  # Refresh data every 1000ms (1 second)
+      - MAX_POINTS=10000      # Maximum number of points to display
+      - TIME_WINDOW=60        # Show last 60 seconds of data by default
+    volumes:
+      - ./data:/data  # Mount the same data directory to access the SQLite DB
+    ports:
+      - "${VISUALIZER_PORT:-8050}:8050"  # Visualizer web interface
+    restart: unless-stopped

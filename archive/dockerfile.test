@@ -1,0 +1,7 @@
+FROM python:3.9-slim
+
+RUN pip install paho-mqtt
+
+COPY test_mqtt_consumer.py /app/test.py
+
+CMD ["python", "/app/test.py"]

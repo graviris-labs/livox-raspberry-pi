@@ -72,7 +72,7 @@ def custom_msg_callback(msg):
             
         # Extract a subset of points for MQTT transmission
         points_sample = []
-        sample_rate = max(1, len(msg.points) // 100)  # Limit to ~100 points
+        sample_rate = max(1, len(msg.points) // 200000)  # Limit to ~200000 points
         
         for i in range(0, len(msg.points), sample_rate):
             if i >= len(msg.points):
