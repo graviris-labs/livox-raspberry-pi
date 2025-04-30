@@ -1,9 +1,0 @@
-version: '3'
-services:
-  livox-ros2:
-    build: .
-    container_name: livox_ros2
-    network_mode: "host"
-    volumes:
-      - ./config:/config
-      - ./data:/data
