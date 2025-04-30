@@ -9,6 +9,8 @@ services:
       - ./data:/data
     environment:
       - ROS_MASTER_URI=http://192.168.50.191:11311
-      - ROS_HOSTNAME=192.168.50.49
+      - ROS_HOSTNAME=192.168.50.49  # Your Mac's IP
+      - ROS_IP=192.168.50.49     
+    restart: unless-stopped
     tty: true
     stdin_open: true

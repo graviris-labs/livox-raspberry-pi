@@ -25,9 +25,11 @@ grep -qxF 'source /home/livox/catkin_ws/devel/setup.bash' ~/.bashrc || echo 'sou
 # Force these specific values regardless of environment variables
 export ROS_MASTER_URI=http://192.168.50.191:11311
 export ROS_HOSTNAME=192.168.50.191
+export ROS_IP=192.168.50.191
 
 echo "Using ROS_MASTER_URI=$ROS_MASTER_URI"
 echo "Using ROS_HOSTNAME=$ROS_HOSTNAME"
+echo "Using ROS_IP=$ROS_HOSTNAME"
 
 # Start roscore in background
 roscore &
