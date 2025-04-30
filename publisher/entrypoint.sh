@@ -31,6 +31,13 @@ echo "Using ROS_MASTER_URI=$ROS_MASTER_URI"
 echo "Using ROS_HOSTNAME=$ROS_HOSTNAME"
 echo "Using ROS_IP=$ROS_HOSTNAME"
 
+# Default MQTT broker is the host itself unless specified
+export MQTT_BROKER=${MQTT_BROKER:-"192.168.50.191"}
+export MQTT_PORT=${MQTT_PORT:-1883}
+
+echo "Using MQTT_BROKER=$MQTT_BROKER"
+echo "Using MQTT_PORT=$MQTT_PORT"
+
 # Start roscore in background
 roscore &
 ROSCORE_PID=$!
@@ -42,4 +49,23 @@ until rostopic list &> /dev/null; do
 done
 
 # Launch Livox driver
-exec roslaunch livox_ros_driver2 msg_MID360.launch
+roslaunch livox_ros_driver2 msg_MID360.launch &
+LIVOX_PID=$!
+
+# Wait a bit for Livox driver to start
+sleep 5
+
+# Start MQTT publisher
+python3 /home/livox/mqtt_livox_publisher.py _mqtt_broker:=$MQTT_BROKER _mqtt_port:=$MQTT_PORT &
+MQTT_PID=$!
+
+echo "All services started. MQTT bridge publishing to $MQTT_BROKER:$MQTT_PORT"
+
+# Keep container running and handle shutdown
+trap 'kill $ROSCORE_PID $LIVOX_PID $MQTT_PID; exit 0' SIGINT SIGTERM
+
+# Wait for any process to exit
+wait -n
+
+# Exit with status of process that exited first
+exit $?

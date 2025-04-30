@@ -29,6 +29,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-noetic-tf \
     apt-utils curl wget git bash-completion build-essential sudo \
     ros-noetic-perception-pcl ros-noetic-eigen-conversions iputils-ping screen vim nano \
+    python3-pip python3-numpy python3-rospy \
+    && pip3 install paho-mqtt numpy \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the built libraries from the builder stage
@@ -56,9 +58,10 @@ RUN . /opt/ros/noetic/setup.sh && \
     ./build.sh ROS1
 
 COPY ./MID360_config.json ${HOME}/catkin_ws/src/livox_ros_driver2/config/
+COPY mqtt_livox_publisher.py /home/livox/mqtt_livox_publisher.py
+RUN chmod +x /home/livox/mqtt_livox_publisher.py
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 CMD ["bash", "/entrypoint.sh"]
-

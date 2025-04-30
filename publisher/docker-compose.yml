@@ -11,5 +11,21 @@ services:
     environment:
       - ROS_MASTER_URI=http://192.168.50.191:11311
       - ROS_HOSTNAME=192.168.50.191
+      - MQTT_BROKER=192.168.50.191  # Change this to your Mac's IP if needed
+      - MQTT_PORT=1883
     ports:
       - "11311:11311"
+      - "1883:1883"  # MQTT port
+    restart: unless-stopped
+
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-broker
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "9001:9001"  # WebSocket port for web clients
+    restart: unless-stopped
