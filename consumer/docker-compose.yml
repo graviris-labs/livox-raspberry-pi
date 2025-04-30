@@ -1,17 +1,19 @@
-version: '3.8'
+version: '3'
 
 services:
-  lidar_listener:
+  # MQTT to SQLite consumer
+  mqtt_consumer:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: lidar_listener
-    network_mode: "host"
+    container_name: mqtt_livox_consumer
+    network_mode: "host"  # Use host networking like in your working example
     environment:
-      - ROS_MASTER_URI=http://192.168.50.191:11311  # IP of your Raspberry Pi
-      - ROS_HOSTNAME=192.168.50.49                 # IP of your Mac
-      - ROS_IP=192.168.50.49
+      - BROKER_ADDRESS=192.168.50.191  # Your Raspberry Pi IP
+      - BROKER_PORT=1883
+      - TOPIC=livox/#  # Subscribe to all livox topics
+      - DATA_DIR=/data
+      - DB_FILENAME=livox_data.db
     volumes:
-      - ./data:/data
-    tty: true
-    stdin_open: true
+      - ./data:/data  # Mount a directory for persistent storage
+    restart: unless-stopped
