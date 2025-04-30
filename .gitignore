@@ -1,2 +1,4 @@
-./consumer/data/data/
-/consumer/data/
+/consumer/data/*
+!/consumer/data/.gitkeep
+/consumer/mosquitto/*
+!/consumer/mosquitto/config/*
