@@ -4,9 +4,17 @@ import rospy
 import json
 import numpy as np
 import paho.mqtt.client as mqtt
-from sensor_msgs.msg import PointCloud2, Imu
 import struct
 import time
+from std_msgs.msg import Header
+from sensor_msgs.msg import Imu
+
+# Import livox ROS message formats if available, otherwise define our own
+try:
+    from livox_ros_driver2.msg import CustomMsg, CustomPoint
+except ImportError:
+    rospy.logwarn("Could not import livox_ros_driver2 messages. Using standard message types.")
+    # Will use standard PointCloud2 as fallback
 
 # Global MQTT client
 mqtt_client = None
@@ -54,59 +62,36 @@ def imu_callback(msg):
     except Exception as e:
         rospy.logerr(f"Error in IMU callback: {str(e)}")
 
-def extract_xyz(cloud_msg):
-    """Extract XYZ points from a PointCloud2 message"""
-    # Get the field offsets for x, y, z
-    x_offset = y_offset = z_offset = None
-    for field in cloud_msg.fields:
-        if field.name == 'x':
-            x_offset = field.offset
-        elif field.name == 'y':
-            y_offset = field.offset
-        elif field.name == 'z':
-            z_offset = field.offset
-    
-    if x_offset is None or y_offset is None or z_offset is None:
-        rospy.logerr("Point cloud does not have x, y, z fields")
-        return []
-    
-    # Extract points (downsampled)
-    points = []
-    point_step = cloud_msg.point_step
-    
-    # Use a fixed stride to downsample (e.g., every 50th point)
-    stride = 50
-    
-    for i in range(0, cloud_msg.width * cloud_msg.height, stride):
-        if i * point_step >= len(cloud_msg.data):
-            break
-            
-        # Extract x, y, z
-        offset = i * point_step
-        x = struct.unpack_from('f', cloud_msg.data, offset + x_offset)[0]
-        y = struct.unpack_from('f', cloud_msg.data, offset + y_offset)[0]
-        z = struct.unpack_from('f', cloud_msg.data, offset + z_offset)[0]
-        
-        # Only include valid points
-        if not (np.isnan(x) or np.isnan(y) or np.isnan(z)):
-            points.append({"x": float(x), "y": float(y), "z": float(z)})
-            
-        # Limit to 100 points maximum to keep message size reasonable
-        if len(points) >= 100:
-            break
-            
-    return points
-
-def pointcloud_callback(msg):
-    """Callback for PointCloud2 messages"""
+def custom_msg_callback(msg):
+    """Callback for Livox CustomMsg messages"""
     try:
         # Only process every 5th message to reduce network load
-        pointcloud_callback.counter += 1
-        if pointcloud_callback.counter % 5 != 0:
+        custom_msg_callback.counter += 1
+        if custom_msg_callback.counter % 5 != 0:
             return
             
-        # Extract points
-        points = extract_xyz(msg)
+        # Extract a subset of points for MQTT transmission
+        points_sample = []
+        sample_rate = max(1, len(msg.points) // 100)  # Limit to ~100 points
+        
+        for i in range(0, len(msg.points), sample_rate):
+            if i >= len(msg.points):
+                break
+                
+            point = msg.points[i]
+            # Convert to a simple dict format for JSON
+            point_dict = {
+                "x": float(point.x),
+                "y": float(point.y),
+                "z": float(point.z),
+                "reflectivity": point.reflectivity,
+                "offset_time": point.offset_time
+            }
+            points_sample.append(point_dict)
+            
+            # Hard limit at 100 points
+            if len(points_sample) >= 100:
+                break
         
         # Create message with header and points
         pc_data = {
@@ -114,17 +99,39 @@ def pointcloud_callback(msg):
                 "stamp": msg.header.stamp.to_sec(),
                 "frame_id": msg.header.frame_id
             },
-            "points": points
+            "timebase": msg.timebase,
+            "lidar_id": msg.lidar_id,
+            "point_num": len(points_sample),
+            "points": points_sample
         }
         
         # Publish to MQTT
         mqtt_client.publish("livox/lidar", json.dumps(pc_data))
         
     except Exception as e:
-        rospy.logerr(f"Error in PointCloud callback: {str(e)}")
+        rospy.logerr(f"Error in CustomMsg callback: {str(e)}")
 
 # Initialize counter as an attribute of the function
-pointcloud_callback.counter = 0
+custom_msg_callback.counter = 0
+
+def check_topics():
+    """Check available topics to determine which ones to subscribe to"""
+    available_topics = rospy.get_published_topics()
+    topic_dict = dict(available_topics)
+    
+    lidar_topic = None
+    lidar_type = None
+    
+    # Check for the Livox LiDAR topic with appropriate type
+    if "/livox/lidar" in topic_dict:
+        lidar_topic = "/livox/lidar"
+        lidar_type = topic_dict["/livox/lidar"]
+        rospy.loginfo(f"Found LiDAR topic: {lidar_topic} with type: {lidar_type}")
+    
+    # Check for IMU topic
+    imu_found = "/livox/imu" in topic_dict
+    
+    return lidar_topic, lidar_type, imu_found
 
 def main():
     global mqtt_client
@@ -135,7 +142,7 @@ def main():
     # Get parameters
     mqtt_broker = rospy.get_param('~mqtt_broker', '192.168.50.191')
     mqtt_port = rospy.get_param('~mqtt_port', 1883)
-    mqtt_client_id = rospy.get_param('~mqtt_client_id', 'livox_bridge_' + str(int(time.time())))
+    mqtt_client_id = rospy.get_param('~mqtt_client_id', f'livox_bridge_{int(time.time())}')
     
     rospy.loginfo(f"Connecting to MQTT broker at {mqtt_broker}:{mqtt_port}")
     
@@ -162,9 +169,24 @@ def main():
     online_msg = json.dumps({"status": "online", "timestamp": time.time()})
     mqtt_client.publish("livox/status", online_msg, qos=1, retain=True)
     
-    # Subscribe to Livox topics
-    rospy.Subscriber("/livox/imu", Imu, imu_callback, queue_size=1)
-    rospy.Subscriber("/livox/lidar", PointCloud2, pointcloud_callback, queue_size=1)
+    # Check for available topics and subscribe appropriately
+    lidar_topic, lidar_type, imu_found = check_topics()
+    
+    if imu_found:
+        rospy.loginfo("Subscribing to IMU topic: /livox/imu")
+        rospy.Subscriber("/livox/imu", Imu, imu_callback, queue_size=1)
+    
+    if lidar_topic:
+        if "CustomMsg" in lidar_type:
+            rospy.loginfo("Detected Livox CustomMsg format")
+            # Import dynamically to avoid dependency issues
+            from livox_ros_driver2.msg import CustomMsg
+            rospy.Subscriber(lidar_topic, CustomMsg, custom_msg_callback, queue_size=1)
+        else:
+            rospy.loginfo(f"Unknown LiDAR data format: {lidar_type}")
+            rospy.loginfo("Please check ROS topic types and update the script accordingly")
+    else:
+        rospy.logwarn("No LiDAR topic found. Please check if the LiDAR driver is running.")
     
     rospy.loginfo("Livox MQTT publisher started")
     
