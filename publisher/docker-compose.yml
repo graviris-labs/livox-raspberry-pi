@@ -3,7 +3,7 @@ services:
     build: .
     image: livox_ros1:latest
     container_name: livox_ros_driver
-    # network_mode: "host"
+    network_mode: "host"
     tty: true
     stdin_open: true
     volumes:
