@@ -8,3 +8,6 @@ services:
     stdin_open: true
     volumes:
       - ./MID360_config.json:/home/livox/catkin_ws/src/livox_ros_driver2/config/MID360_config.json
+    environment:
+      - ROS_MASTER_URI=http://192.168.50.191:11311
+      - ROS_HOSTNAME=192.168.50.191
