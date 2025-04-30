@@ -2,15 +2,17 @@ version: '3.8'
 
 services:
   lidar_listener:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: lidar_listener
-    network_mode: host
+    environment:
+      - ROS_MASTER_URI=http://192.168.50.191:11311  # IP of your Raspberry Pi
+      - ROS_HOSTNAME=192.168.50.49                 # IP of your Mac
+      - ROS_IP=192.168.50.49
     volumes:
       - ./data:/data
-    environment:
-      - ROS_MASTER_URI=http://192.168.50.191:11311
-      - ROS_HOSTNAME=192.168.50.49  # Your Mac's IP
-      - ROS_IP=192.168.50.49     
-    restart: unless-stopped
+    ports:
+      - "11311:11311"
     tty: true
     stdin_open: true
