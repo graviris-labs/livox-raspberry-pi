@@ -17,6 +17,10 @@ RUN pip install --no-cache-dir paho-mqtt==1.6.1
 # Copy application code
 COPY mqtt_consumer.py .
 
+# In your Dockerfile
+ENV BROKER_ADDRESS=192.168.50.191
+ENV PORT=1883
+
 # Ensure SQLite is properly configured
 RUN echo ".databases" | sqlite3
 

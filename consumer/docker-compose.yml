@@ -8,10 +8,12 @@ services:
       dockerfile: Dockerfile
     container_name: mqtt_livox_consumer
     network_mode: "host"  # Use host networking like in your working example
+    # ports:
+    #   - "1883:1883" 
     environment:
       - BROKER_ADDRESS=192.168.50.191  # Your Raspberry Pi IP
       - BROKER_PORT=1883
-      - TOPIC=livox/#  # Subscribe to all livox topics
+      - TOPIC=livox/+  # Subscribe to all livox topics
       - DATA_DIR=/data
       - DB_FILENAME=livox_data.db
     volumes:

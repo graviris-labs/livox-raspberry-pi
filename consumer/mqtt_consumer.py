@@ -24,7 +24,7 @@ logger = logging.getLogger('mqtt-consumer')
 # Configuration from environment variables
 BROKER_ADDRESS = os.environ.get("BROKER_ADDRESS", "192.168.50.191")
 PORT = int(os.environ.get("BROKER_PORT", 1883))
-TOPIC = os.environ.get("TOPIC", "livox/#")
+TOPIC = os.environ.get("TOPIC", "livox/+")
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
 DB_FILENAME = os.environ.get("DB_FILENAME", "livox_data.db")
 

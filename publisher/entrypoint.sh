@@ -22,14 +22,14 @@ fi
 grep -qxF 'source /opt/ros/noetic/setup.bash' ~/.bashrc || echo 'source /opt/ros/noetic/setup.bash' >> ~/.bashrc
 grep -qxF 'source /home/livox/catkin_ws/devel/setup.bash' ~/.bashrc || echo 'source /home/livox/catkin_ws/devel/setup.bash' >> ~/.bashrc
 
-# Force these specific values regardless of environment variables
-export ROS_MASTER_URI=http://192.168.50.191:11311
-export ROS_HOSTNAME=192.168.50.191
-export ROS_IP=192.168.50.191
+# # Force these specific values regardless of environment variables
+# export ROS_MASTER_URI=http://192.168.50.191:11311
+# export ROS_HOSTNAME=192.168.50.191
+# export ROS_IP=192.168.50.191
 
-echo "Using ROS_MASTER_URI=$ROS_MASTER_URI"
-echo "Using ROS_HOSTNAME=$ROS_HOSTNAME"
-echo "Using ROS_IP=$ROS_HOSTNAME"
+# echo "Using ROS_MASTER_URI=$ROS_MASTER_URI"
+# echo "Using ROS_HOSTNAME=$ROS_HOSTNAME"
+# echo "Using ROS_IP=$ROS_HOSTNAME"
 
 # Default MQTT broker is the host itself unless specified
 export MQTT_BROKER=${MQTT_BROKER:-"192.168.50.191"}
