@@ -139,8 +139,8 @@ def main():
     
     rospy.loginfo(f"Connecting to MQTT broker at {mqtt_broker}:{mqtt_port}")
     
-    # Setup MQTT client
-    mqtt_client = mqtt.Client(mqtt_client_id)
+    # Setup MQTT client - specify older API version to avoid compatibility issues
+    mqtt_client = mqtt.Client(client_id=mqtt_client_id, protocol=mqtt.MQTTv311)
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
     
