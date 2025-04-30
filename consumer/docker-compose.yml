@@ -6,6 +6,9 @@ services:
     container_name: lidar_listener
     network_mode: host
     volumes:
-      - ./data:/data  # SQLite DB stored here
+      - ./data:/data
+    environment:
+      - ROS_MASTER_URI=http://192.168.50.191:11311
+      - ROS_HOSTNAME=192.168.50.49
     tty: true
     stdin_open: true

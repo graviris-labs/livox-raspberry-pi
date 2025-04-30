@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sqlite3
 import rospy
-from livox_ros_driver.msg import CustomMsg
+from livox_ros_driver2.msg import CustomMsg
 
 conn = sqlite3.connect('/data/lidar_data.db')
 c = conn.cursor()
