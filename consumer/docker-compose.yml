@@ -2,16 +2,30 @@ version: '3'
 
 services:
   # MQTT to SQLite consumer
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0.18-openssl
+    container_name: mqtt-broker
+    ports:
+      - "${MQTT_BROKER_PORT:-1883}:1883"
+      - "${MQTT_WEBSOCKET_PORT:-9001}:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: unless-stopped
+
   mqtt_consumer:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: mqtt_livox_consumer
-    network_mode: "host"  # Use host networking like in your working example
+    # network_mode: "host"  # Use host networking like in your working example
     # ports:
     #   - "1883:1883" 
+    depends_on:
+      - mqtt-broker
     environment:
-      - BROKER_ADDRESS=192.168.50.191  # Your Raspberry Pi IP
+      - BROKER_ADDRESS=mqtt-broker # Your Raspberry Pi IP
       - BROKER_PORT=1883
       - TOPIC=livox/+  # Subscribe to all livox topics
       - DATA_DIR=/data

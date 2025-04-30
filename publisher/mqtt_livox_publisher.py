@@ -139,8 +139,10 @@ def main():
     # Initialize ROS node
     rospy.init_node('livox_mqtt_publisher', anonymous=True)
     
-    # Get parameters
-    mqtt_broker = rospy.get_param('~mqtt_broker', '192.168.50.191')
+    # Get parameters - changed mqtt_broker default to target Mac Mini
+    # Replace the IP here with your Mac Mini's actual IP address on your network
+    mac_mini_ip = "192.168.50.49"  # CHANGE THIS to your Mac Mini's IP address
+    mqtt_broker = rospy.get_param('~mqtt_broker', mac_mini_ip)
     mqtt_port = rospy.get_param('~mqtt_port', 1883)
     mqtt_client_id = rospy.get_param('~mqtt_client_id', f'livox_bridge_{int(time.time())}')
     

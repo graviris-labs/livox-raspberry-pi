@@ -31,8 +31,9 @@ echo "Using ROS_MASTER_URI=$ROS_MASTER_URI"
 echo "Using ROS_HOSTNAME=$ROS_HOSTNAME"
 echo "Using ROS_IP=$ROS_HOSTNAME"
 
-# Default MQTT broker is the host itself unless specified
-export MQTT_BROKER=${MQTT_BROKER:-"192.168.50.191"}
+# IMPORTANT: Don't override MQTT_BROKER with a hardcoded Pi IP
+# Instead use the value from docker-compose.yml, falling back only if not set
+export MQTT_BROKER=${MQTT_BROKER:-"192.168.50.49"}  # CHANGE fallback to Mac Mini IP
 export MQTT_PORT=${MQTT_PORT:-1883}
 
 echo "Using MQTT_BROKER=$MQTT_BROKER"
