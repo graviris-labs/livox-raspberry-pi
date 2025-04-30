@@ -10,7 +10,7 @@ mkdir -p /data
 
 # Start the MQTT consumer
 echo "Starting MQTT consumer..."
-exec python3 /app/mqtt_sqlite_consumer.py \
+exec python3 /app/mqtt_consumer.py \
   --broker "${MQTT_BROKER}" \
   --port "${MQTT_PORT}" \
   --database "/data/livox_data.db"

@@ -20,4 +20,7 @@ COPY mqtt_consumer.py .
 # Ensure SQLite is properly configured
 RUN echo ".databases" | sqlite3
 
-CMD ["python", "mqtt_consumer.py"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

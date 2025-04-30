@@ -21,6 +21,7 @@ services:
   mqtt-broker:
     image: eclipse-mosquitto:latest
     container_name: mqtt-broker
+    network_mode: "host"
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
