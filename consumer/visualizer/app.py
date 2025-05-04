@@ -13,6 +13,10 @@ import threading
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
+from scipy.spatial import cKDTree
+import matplotlib.colors as mcolors
+from collections import defaultdict
+
 
 import dash
 from dash import dcc, html
@@ -157,6 +161,77 @@ app.layout = dbc.Container([
                 ]),
             ], className="h-100 shadow"),
             
+            # Voxel Density Controls
+            dbc.Card([
+                dbc.CardHeader("Vegetation Analysis"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Voxel Size (m):"),
+                            dcc.Slider(
+                                id="voxel-size-slider",
+                                min=0.1,
+                                max=1.0,
+                                step=0.1,
+                                value=0.2,
+                                marks={0.1: '0.1', 0.5: '0.5', 1.0: '1.0'},
+                            ),
+                        ], width=12),
+                    ], className="mb-3"),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Density Threshold:"),
+                            dcc.Slider(
+                                id="density-threshold-slider",
+                                min=1,
+                                max=10,
+                                step=1,
+                                value=1,
+                                marks={1: '1', 5: '5', 10: '10'},
+                            ),
+                        ], width=12),
+                    ]),
+                ]),
+            ], className="mt-3 shadow"),
+    # Add this after the existing row with point cloud and IMU
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader("Vegetation Density Analysis"),
+                dbc.CardBody([
+                    dbc.Tabs([
+                        dbc.Tab([
+                            dcc.Loading(
+                                dcc.Graph(
+                                    id="voxel-density-graph",
+                                    figure={},
+                                    style={"height": "60vh"},
+                                    config={
+                                        "displayModeBar": True,
+                                        "displaylogo": False,
+                                        "modeBarButtonsToRemove": ["select2d", "lasso2d"]
+                                    }
+                                ),
+                                type="default",
+                            ),
+                        ], label="3D Density"),
+                        dbc.Tab([
+                            dcc.Loading(
+                                dcc.Graph(
+                                    id="height-profile-graph",
+                                    figure={},
+                                    style={"height": "60vh"},
+                                    config={"displayModeBar": False}
+                                ),
+                                type="default",
+                            ),
+                        ], label="Height Profile"),
+                    ]),
+                ]),
+            ], className="shadow"),
+        ], width=12, className="mb-4"),
+    ]),
+
             # Color options and controls
             dbc.Card([
                 dbc.CardHeader("Visualization Options"),
@@ -352,6 +427,8 @@ def update_connection_status(n):
         Output("lidar-graph", "figure"),
         Output("imu-orientation-graph", "figure"),
         Output("imu-acceleration-graph", "figure"),
+        Output("voxel-density-graph", "figure"),
+        Output("height-profile-graph", "figure"),
         Output("last-update-time", "children"),
         Output("last-update-timestamp", "data"),
     ],
@@ -361,6 +438,8 @@ def update_connection_status(n):
         Input("point-limit-slider", "value"),
         Input("point-size-slider", "value"),
         Input("color-option-dropdown", "value"),
+        Input("voxel-size-slider", "value"),
+        Input("density-threshold-slider", "value"),
         Input("reset-view-button", "n_clicks"),
     ],
     [
@@ -369,12 +448,14 @@ def update_connection_status(n):
     ]
 )
 def update_graphs(n_intervals, time_window, point_limit, point_size, color_option, 
-                 reset_clicks, current_figure, last_timestamp):
+                 voxel_size, density_threshold, reset_clicks, current_figure, last_timestamp):
     
     # Default return values
     lidar_fig = current_figure if current_figure else create_empty_lidar_figure()
     imu_orientation_fig = create_empty_imu_orientation_figure()
     imu_acceleration_fig = create_empty_imu_acceleration_figure()
+    voxel_density_fig = create_empty_voxel_figure()
+    height_profile_fig = go.Figure()
     current_time = "Never"
     timestamp_data = last_timestamp or {}
     
@@ -384,7 +465,7 @@ def update_graphs(n_intervals, time_window, point_limit, point_size, color_optio
     
     # If there's no data, return defaults
     if lidar_df is None and imu_df is None:
-        return lidar_fig, imu_orientation_fig, imu_acceleration_fig, current_time, timestamp_data
+        return lidar_fig, imu_orientation_fig, imu_acceleration_fig, voxel_density_fig, height_profile_fig, current_time, timestamp_data
     
     # Create timestamp
     now = time.strftime("%H:%M:%S", time.localtime())
@@ -394,6 +475,14 @@ def update_graphs(n_intervals, time_window, point_limit, point_size, color_optio
     # Create LiDAR figure
     if lidar_df is not None and not lidar_df.empty:
         lidar_fig = create_lidar_figure(lidar_df, point_size, color_option, reset_clicks)
+        
+        # Create voxel density figures
+        voxel_density_fig = create_voxel_density_figure(lidar_df, voxel_size, density_threshold)
+        
+        # Get voxel data for height profile
+        voxel_centers, densities = voxelize_point_cloud(lidar_df, voxel_size)
+        if len(voxel_centers) > 0:
+            height_profile_fig = create_height_profile_figure(voxel_centers, densities)
     
     # Create IMU figures
     if imu_df is not None and not imu_df.empty:
@@ -401,7 +490,8 @@ def update_graphs(n_intervals, time_window, point_limit, point_size, color_optio
         imu_orientation_fig = create_imu_orientation_figure(latest_imu)
         imu_acceleration_fig = create_imu_acceleration_figure(imu_df)
     
-    return lidar_fig, imu_orientation_fig, imu_acceleration_fig, current_time, timestamp_data
+    return lidar_fig, imu_orientation_fig, imu_acceleration_fig, voxel_density_fig, height_profile_fig, current_time, timestamp_data
+
 
 def create_empty_lidar_figure():
     """Create an empty 3D scatter plot for LiDAR data"""
@@ -524,7 +614,7 @@ def create_lidar_figure(df, point_size, color_option, reset_clicks):
         x_range = [-5, 5]
         y_range = [-5, 5]
         z_range = [-2, 5]
-    
+
     # Update layout with proper ranges
     fig.update_layout(
         scene=dict(
@@ -800,6 +890,223 @@ def create_imu_acceleration_figure(imu_df):
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(80,80,80,0.2)')
     
     return fig
+
+def voxelize_point_cloud(df, voxel_size=0.2):
+    """Convert point cloud to voxel grid representation with density"""
+    # Extract coordinates
+    points = np.vstack([df['x'].values, df['y'].values, df['z'].values]).T
+    
+    # Create voxel indices
+    voxel_indices = np.floor(points / voxel_size).astype(int)
+    
+    # Count points per voxel
+    voxel_count = defaultdict(int)
+    for idx in voxel_indices:
+        voxel_count[tuple(idx)] += 1
+    
+    # Convert to arrays for visualization
+    voxels = np.array(list(voxel_count.keys()))
+    densities = np.array(list(voxel_count.values()))
+    
+    # Convert voxel indices back to coordinates (center of voxels)
+    voxel_centers = (voxels + 0.5) * voxel_size
+    
+    return voxel_centers, densities
+
+def calculate_vegetation_metrics(voxel_centers, densities, min_height=0.5, max_height=5.0):
+    """Calculate vegetation metrics based on voxel densities"""
+    # Filter voxels by height to focus on vegetation
+    mask = (voxel_centers[:, 2] >= min_height) & (voxel_centers[:, 2] <= max_height)
+    veg_centers = voxel_centers[mask]
+    veg_densities = densities[mask]
+    
+    # Basic metrics
+    metrics = {
+        "total_vegetation_voxels": len(veg_centers),
+        "mean_density": np.mean(veg_densities) if len(veg_densities) > 0 else 0,
+        "max_density": np.max(veg_densities) if len(veg_densities) > 0 else 0,
+        "total_points_in_veg": np.sum(veg_densities),
+        "height_profile": {}
+    }
+    
+    # Calculate height profile (density at different height bands)
+    if len(veg_centers) > 0:
+        height_bins = np.arange(min_height, max_height + 0.5, 0.5)
+        for i in range(len(height_bins) - 1):
+            lower = height_bins[i]
+            upper = height_bins[i+1]
+            in_band = (veg_centers[:, 2] >= lower) & (veg_centers[:, 2] < upper)
+            metrics["height_profile"][f"{lower:.1f}-{upper:.1f}m"] = np.sum(veg_densities[in_band])
+    
+    return metrics
+
+def create_voxel_density_figure(df, voxel_size=0.2, density_threshold=1):
+    """Create a 3D visualization of voxel densities"""
+    if df is None or df.empty:
+        return create_empty_voxel_figure()
+    
+    # Generate voxel representation
+    voxel_centers, densities = voxelize_point_cloud(df, voxel_size)
+    
+    # Filter out low-density voxels for clarity
+    mask = densities >= density_threshold
+    voxel_centers = voxel_centers[mask]
+    densities = densities[mask]
+    
+    if len(voxel_centers) == 0:
+        return create_empty_voxel_figure()
+    
+    # Calculate vegetation metrics
+    metrics = calculate_vegetation_metrics(voxel_centers, densities)
+    
+    # Normalize densities for coloring
+    max_density = np.max(densities)
+    norm_densities = densities / max_density if max_density > 0 else densities
+    
+    # Create figure with voxel scatter plot
+    fig = go.Figure(data=[go.Scatter3d(
+        x=voxel_centers[:, 0],
+        y=voxel_centers[:, 1],
+        z=voxel_centers[:, 2],
+        mode='markers',
+        marker=dict(
+            size=voxel_size * 25,  # Scale marker size with voxel size
+            color=densities,
+            colorscale='Viridis',
+            colorbar=dict(title="Point Count"),
+            opacity=0.8,
+        ),
+        hoverinfo='text',
+        text=[f"Density: {d} points<br>Position: ({x:.2f}, {y:.2f}, {z:.2f})" 
+              for d, (x, y, z) in zip(densities, voxel_centers)],
+    )])
+    
+    # Add sensor origin
+    fig.add_trace(go.Scatter3d(
+        x=[0], y=[0], z=[0],
+        mode='markers',
+        marker=dict(
+            size=8,
+            color='red',
+            symbol='circle',
+        ),
+        name='Sensor Origin',
+    ))
+    
+    # Add vegetation metrics as annotations
+    metric_text = (
+        f"Vegetation Metrics:<br>"
+        f"Total Veg Voxels: {metrics['total_vegetation_voxels']}<br>"
+        f"Mean Density: {metrics['mean_density']:.2f} pts/voxel<br>"
+        f"Max Density: {metrics['max_density']} pts/voxel<br>"
+        f"Total Vegetation Points: {metrics['total_points_in_veg']}"
+    )
+    
+    fig.add_annotation(
+        x=0.02,
+        y=0.98,
+        xref="paper",
+        yref="paper",
+        text=metric_text,
+        showarrow=False,
+        font=dict(color="white"),
+        align="left",
+        bgcolor="rgba(50, 50, 50, 0.7)",
+        bordercolor="white",
+        borderwidth=1,
+    )
+    
+    # Dynamically set ranges based on data
+    x_range = [np.min(voxel_centers[:, 0]) - 1, np.max(voxel_centers[:, 0]) + 1]
+    y_range = [np.min(voxel_centers[:, 1]) - 1, np.max(voxel_centers[:, 1]) + 1]
+    z_range = [np.min(voxel_centers[:, 2]) - 1, np.max(voxel_centers[:, 2]) + 1]
+    
+    # Ensure minimum range
+    x_range = ensure_minimum_range(x_range, 2)
+    y_range = ensure_minimum_range(y_range, 2)
+    z_range = ensure_minimum_range(z_range, 1)
+    
+    # Update layout
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(title='X (Forward)', range=x_range),
+            yaxis=dict(title='Y (Left)', range=y_range),
+            zaxis=dict(title='Z (Up)', range=z_range),
+            aspectratio=dict(x=1, y=1, z=0.5),
+        ),
+        margin=dict(l=0, r=0, b=0, t=30),
+        title="Vegetation Density",
+        paper_bgcolor='rgba(0,0,0,0)',
+        scene_camera=dict(
+            eye=dict(x=1.5, y=1.5, z=1.5),
+            up=dict(x=0, y=0, z=1),
+        ),
+    )
+    
+    return fig
+
+def create_empty_voxel_figure():
+    """Create an empty 3D figure for voxel visualization"""
+    fig = go.Figure()
+    
+    # Add an invisible scatter point to set the axes ranges
+    fig.add_trace(go.Scatter3d(
+        x=[-5, 5], y=[-5, 5], z=[-2, 5],
+        mode='markers',
+        marker=dict(size=0, opacity=0),
+        showlegend=False,
+    ))
+    
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(title='X (Forward)', range=[-5, 5]),
+            yaxis=dict(title='Y (Left)', range=[-5, 5]),
+            zaxis=dict(title='Z (Up)', range=[-2, 5]),
+            aspectratio=dict(x=1, y=1, z=0.5),
+        ),
+        margin=dict(l=0, r=0, b=0, t=30),
+        title="Vegetation Density (No Data)",
+        paper_bgcolor='rgba(0,0,0,0)',
+    )
+    
+    return fig
+
+def create_height_profile_figure(voxel_centers, densities, min_height=0.5, max_height=5.0):
+    """Create a bar chart showing density distribution by height"""
+    if len(voxel_centers) == 0:
+        return go.Figure()
+    
+    # Calculate metrics which includes height profile
+    metrics = calculate_vegetation_metrics(voxel_centers, densities, min_height, max_height)
+    
+    # Extract height profile data
+    heights = []
+    counts = []
+    
+    for height_range, count in metrics["height_profile"].items():
+        heights.append(height_range)
+        counts.append(count)
+    
+    # Create horizontal bar chart
+    fig = go.Figure(go.Bar(
+        x=counts,
+        y=heights,
+        orientation='h',
+        marker_color='rgba(50, 171, 96, 0.7)',
+    ))
+    
+    fig.update_layout(
+        title="Vegetation Height Profile",
+        xaxis_title="Point Count",
+        yaxis_title="Height Range (m)",
+        yaxis=dict(autorange="reversed"),  # Higher values at top
+        margin=dict(l=10, r=10, t=40, b=10),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(30,30,30,1)',
+    )
+    
+    return fig
+
 
 # Run the app
 if __name__ == "__main__":

@@ -6,13 +6,25 @@ services:
     network_mode: "host"
     tty: true
     stdin_open: true
+    # Add privileged mode for better hardware access
+    privileged: true
     volumes:
       - ./MID360_config.json:/home/livox/catkin_ws/src/livox_ros_driver2/config/MID360_config.json
+      # Mount Pi camera module configuration if needed
+      - /etc/camera_config.txt:/etc/camera_config.txt:ro
+    # Add device mappings for IMX219 camera
+    devices:
+      - "/dev/video0:/dev/video0"
+      - "/dev/media0:/dev/media0"        # Media device for camera
+      - "/dev/v4l-subdev0:/dev/v4l-subdev0"  # V4L subdevice
     environment:
       - ROS_MASTER_URI=http://192.168.50.191:11311
       - ROS_HOSTNAME=192.168.50.191
       - MQTT_BROKER=192.168.50.49 # CHANGE THIS to your Mac Mini's IP address
       - MQTT_PORT=1883
+      # Add environment variable for Raspberry Pi IMX219 camera
+      - CAMERA_MODEL=imx219
+      - CAMERA_TOPIC=/camera/image_raw
     ports:
       - "11311:11311"
     restart: unless-stopped

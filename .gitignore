@@ -2,3 +2,4 @@
 !/consumer/data/.gitkeep
 /consumer/mosquitto/*
 !/consumer/mosquitto/config/*
+.DS_Store
