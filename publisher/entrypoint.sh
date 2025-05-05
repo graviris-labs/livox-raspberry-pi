@@ -60,6 +60,13 @@ sleep 5
 python3 /home/livox/mqtt_livox_publisher.py _mqtt_broker:=$MQTT_BROKER _mqtt_port:=$MQTT_PORT &
 MQTT_PID=$!
 
+# Start camera publisher
+python3 /home/livox/camera_publisher.py &
+CAMERA_PID=$!
+
+# Wait for camera to initialize
+sleep 2
+
 # Start IR MQTT publisher
 python3 /home/livox/mqtt_ir_publisher.py _mqtt_broker:=$MQTT_BROKER _mqtt_port:=$MQTT_PORT &
 IR_MQTT_PID=$!
@@ -67,7 +74,7 @@ IR_MQTT_PID=$!
 echo "All services started. MQTT bridge publishing to $MQTT_BROKER:$MQTT_PORT"
 
 # Keep container running and handle shutdown
-trap 'kill $ROSCORE_PID $LIVOX_PID $MQTT_PID $IR_MQTT_PID; exit 0' SIGINT SIGTERM
+trap 'kill $ROSCORE_PID $LIVOX_PID $MQTT_PID $IR_MQTT_PID $CAMERA_PID; exit 0' SIGINT SIGTERM
 
 # Wait for any process to exit
 wait -n

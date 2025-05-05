@@ -63,6 +63,8 @@ RUN . /opt/ros/noetic/setup.sh && \
 COPY ./MID360_config.json ${HOME}/catkin_ws/src/livox_ros_driver2/config/
 COPY mqtt_livox_publisher.py /home/livox/mqtt_livox_publisher.py
 COPY mqtt_ir_publisher.py /home/livox/mqtt_ir_publisher.py
+COPY camera_publisher.py /home/livox/camera_publisher.py
+RUN chmod +x /home/livox/camera_publisher.py
 RUN chmod +x /home/livox/mqtt_livox_publisher.py
 RUN chmod +x /home/livox/mqtt_ir_publisher.py
 
