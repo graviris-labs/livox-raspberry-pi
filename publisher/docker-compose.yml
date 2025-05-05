@@ -8,8 +8,8 @@ services:
     stdin_open: true
     # Add privileged mode for picamera access
     privileged: true
-    # Run as root for full hardware access
-    user: "root"
+    devices:
+      - "/dev/video0:/dev/video0"
     volumes:
       - ./MID360_config.json:/home/livox/catkin_ws/src/livox_ros_driver2/config/MID360_config.json
       # Mount the entire /dev directory for camera access
