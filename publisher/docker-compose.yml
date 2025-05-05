@@ -8,6 +8,7 @@ services:
     stdin_open: true
     # Add privileged mode for better hardware access
     privileged: true
+    user: "root"
     volumes:
       - ./MID360_config.json:/home/livox/catkin_ws/src/livox_ros_driver2/config/MID360_config.json
       # Mount Pi camera module configuration if needed
