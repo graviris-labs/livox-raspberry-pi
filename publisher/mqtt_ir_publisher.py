@@ -1,98 +1,108 @@
 #!/usr/bin/env python3
 
 import rospy
-import json
-import cv2
+import numpy as np
 import time
-import paho.mqtt.client as mqtt
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-import sys
+import cv2
 
-bridge = CvBridge()
-mqtt_client = None
-
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        rospy.loginfo("Connected to MQTT broker for IR")
-    else:
-        rospy.logerr(f"Failed to connect to MQTT broker (IR) with code {rc}")
-
-def on_disconnect(client, userdata, rc):
-    if rc != 0:
-        rospy.logwarn(f"IR MQTT disconnected. Code: {rc}")
-
-def image_callback(msg):
-    try:
-        # Convert ROS Image to OpenCV
-        cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="mono8")
-
-        # Encode as JPEG
-        ret, jpeg = cv2.imencode('.jpg', cv_img)
-        if not ret:
-            rospy.logwarn("Failed to encode JPEG")
-            return
-
-        payload = {
-            "timestamp": msg.header.stamp.to_sec(),
-            "frame_id": msg.header.frame_id,
-            "image": jpeg.tobytes().hex()  # send as hex string
-        }
-
-        mqtt_client.publish("ir/image", json.dumps(payload))
-
-    except Exception as e:
-        rospy.logerr(f"Error in IR image callback: {str(e)}")
+def calculate_pseudo_ndvi(image):
+    """
+    Calculate pseudo-NDVI from a NoIR camera without additional filters
+    Using the differential sensitivity of the sensor channels to NIR
+    """
+    # Split the BGR channels
+    b, g, r = cv2.split(image)
+    
+    # Red channel has more NIR sensitivity, blue has less
+    # Use this difference for a pseudo-NDVI
+    r_float = r.astype(float)
+    b_float = b.astype(float)
+    
+    # Avoid division by zero
+    denominator = r_float + b_float
+    denominator[denominator == 0] = 1
+    
+    # Calculate pseudo-NDVI
+    pseudo_ndvi = (r_float - b_float) / denominator
+    
+    # Scale to 0-255 for visualization
+    ndvi_scaled = ((pseudo_ndvi + 1) / 2 * 255).astype(np.uint8)
+    
+    # Create a color map for better visualization
+    ndvi_color = cv2.applyColorMap(ndvi_scaled, cv2.COLORMAP_JET)
+    
+    return ndvi_color, pseudo_ndvi
 
 def main():
-    global mqtt_client
-    rospy.init_node("ir_mqtt_publisher", anonymous=True)
+    rospy.init_node("camera_publisher")
+    pub_raw = rospy.Publisher("/camera/image_raw", Image, queue_size=1)
+    pub_ndvi = rospy.Publisher("/camera/ndvi", Image, queue_size=1)
+    bridge = CvBridge()
+    
+    rospy.loginfo("Starting NoIR camera publisher with picamera2...")
+    
+    try:
+        # Import and initialize picamera2
+        from picamera2 import Picamera2
+        picam2 = Picamera2()
+        
+        # Configure camera for preview mode
+        config = picam2.create_preview_configuration(main={"size": (640, 480), "format": "RGB888"})
+        picam2.configure(config)
+        
+        # Start camera
+        picam2.start()
+        rospy.loginfo("NoIR Camera started successfully")
+        
+        # Wait for camera to initialize
+        time.sleep(2)
+        
+        rate = rospy.Rate(10)  # 10 FPS
+        
+        while not rospy.is_shutdown():
+            try:
+                # Capture frame
+                frame = picam2.capture_array()
+                
+                # Convert from RGB to BGR for OpenCV processing
+                if frame.shape[2] == 3:  # If it's RGB
+                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                else:
+                    frame_bgr = frame
+                
+                # Calculate pseudo-NDVI
+                ndvi_color, ndvi_raw = calculate_pseudo_ndvi(frame_bgr)
+                
+                # Create ROS messages
+                msg_raw = bridge.cv2_to_imgmsg(frame_bgr, encoding="bgr8")
+                msg_raw.header.stamp = rospy.Time.now()
+                pub_raw.publish(msg_raw)
+                
+                msg_ndvi = bridge.cv2_to_imgmsg(ndvi_color, encoding="bgr8")
+                msg_ndvi.header.stamp = rospy.Time.now()
+                pub_ndvi.publish(msg_ndvi)
+                
+                # Log occasionally
+                if int(rospy.get_time()) % 10 == 0:
+                    rospy.loginfo("NoIR Camera publishing raw and pseudo-NDVI images")
+                
+            except Exception as e:
+                rospy.logerr(f"Error capturing frame: {e}")
+            
+            rate.sleep()
+        
+        # Clean up
+        picam2.close()
+        
+    except ImportError as e:
+        rospy.logerr(f"Failed to import picamera2: {e}")
+    except Exception as e:
+        rospy.logerr(f"Camera initialization failed: {e}")
 
-    # Get MQTT broker settings
-    mac_mini_ip = "192.168.50.49"  # <- change if needed
-    mqtt_broker = rospy.get_param('~mqtt_broker', mac_mini_ip)
-    mqtt_port = rospy.get_param('~mqtt_port', 1883)
-    
-    rospy.loginfo(f"Attempting to connect to MQTT broker at {mqtt_broker}:{mqtt_port}")
-    
-    # Create MQTT client with paho-mqtt 1.0 compatible approach
-    mqtt_client = mqtt.Client()  # Using simplest form for maximum compatibility
-    
-    mqtt_client.on_connect = on_connect
-    mqtt_client.on_disconnect = on_disconnect
-    
-    # Try to connect with retry
-    max_retries = 5
-    for retry in range(max_retries):
-        try:
-            rospy.loginfo(f"MQTT connection attempt {retry+1}/{max_retries}")
-            mqtt_client.connect(mqtt_broker, mqtt_port, 60)
-            mqtt_client.loop_start()
-            break
-        except Exception as e:
-            rospy.logerr(f"Failed to connect to MQTT broker (attempt {retry+1}): {e}")
-            if retry == max_retries - 1:
-                rospy.logerr("Max retries reached. Cannot connect to MQTT broker.")
-                return
-            rospy.sleep(5)  # Wait before retry
-
-    # Update this topic to match your camera's topic
-    camera_topic = rospy.get_param('~camera_topic', '/camera/image_raw')
-    rospy.loginfo(f"Subscribing to camera topic: {camera_topic}")
-    rospy.Subscriber(camera_topic, Image, image_callback, queue_size=1)
-
-    rospy.spin()
-    
-    if mqtt_client:
-        try:
-            mqtt_client.loop_stop()
-            mqtt_client.disconnect()
-        except:
-            pass
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        rospy.logerr(f"Fatal error in IR publisher: {e}")
-        sys.exit(1)
+        rospy.logerr(f"Camera publisher failed: {e}")

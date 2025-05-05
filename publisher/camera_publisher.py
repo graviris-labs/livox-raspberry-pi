@@ -1,66 +1,104 @@
 #!/usr/bin/env python3
 
 import rospy
-import cv2
-import time
 import numpy as np
+import time
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+import cv2
+
+def calculate_ndvi(image):
+    """
+    Calculate NDVI from a NoIR camera image
+    Assuming a blue filter is used (blue blocks NIR, red channel gets NIR)
+    """
+    # Split the BGR channels
+    b, g, r = cv2.split(image)
+    
+    # Using red channel as NIR and blue channel as visible
+    nir = r.astype(float)
+    vis = b.astype(float)
+    
+    # Avoid division by zero
+    denominator = nir + vis
+    denominator[denominator == 0] = 1  # Avoid division by zero
+    
+    # Calculate NDVI
+    ndvi = (nir - vis) / denominator
+    
+    # Scale to 0-255 for visualization (NDVI ranges from -1 to 1)
+    ndvi_scaled = ((ndvi + 1) / 2 * 255).astype(np.uint8)
+    
+    # Create a color map for better visualization
+    ndvi_color = cv2.applyColorMap(ndvi_scaled, cv2.COLORMAP_JET)
+    
+    return ndvi_color, ndvi
 
 def main():
     rospy.init_node("camera_publisher")
-    pub = rospy.Publisher("/camera/image_raw", Image, queue_size=1)
+    pub_raw = rospy.Publisher("/camera/image_raw", Image, queue_size=1)
+    pub_ndvi = rospy.Publisher("/camera/ndvi", Image, queue_size=1)
     bridge = CvBridge()
     
-    # Try to open camera with default settings first
-    cap = cv2.VideoCapture(0)
+    rospy.loginfo("Starting NoIR camera publisher with picamera2...")
     
-    if not cap.isOpened():
-        rospy.logerr("Failed to open camera with default settings")
-        return
-    
-    # Set properties - let OpenCV negotiate with the driver
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    
-    # Get actual properties
-    actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    
-    rospy.loginfo(f"Camera opened with resolution: {actual_width}x{actual_height}")
-    
-    # Skip first few frames
-    for _ in range(3):
-        cap.read()
-    
-    rate = rospy.Rate(10)  # 10 FPS
-    
-    while not rospy.is_shutdown():
-        ret, frame = cap.read()
-        if not ret:
-            rospy.logwarn("Failed to capture frame.")
-            rate.sleep()
-            continue
+    try:
+        # Import and initialize picamera2
+        from picamera2 import Picamera2
+        picam2 = Picamera2()
         
-        try:
-            # Convert to grayscale
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            
-            # Create ROS image message
-            msg = bridge.cv2_to_imgmsg(gray, encoding="mono8")
-            msg.header.stamp = rospy.Time.now()
-            pub.publish(msg)
-            
-            # Log occasionally
-            if rospy.get_time() % 10 < 0.1:
-                rospy.loginfo("Camera publishing successfully")
+        # Configure camera for raw mode to preserve all channels
+        config = picam2.create_preview_configuration(main={"size": (640, 480), "format": "RGB888"})
+        picam2.configure(config)
+        
+        # Start camera
+        picam2.start()
+        rospy.loginfo("NoIR Camera started successfully")
+        
+        # Wait for camera to initialize
+        time.sleep(2)
+        
+        rate = rospy.Rate(10)  # 10 FPS
+        
+        while not rospy.is_shutdown():
+            try:
+                # Capture frame
+                frame = picam2.capture_array()
                 
-        except Exception as e:
-            rospy.logerr(f"Error processing frame: {e}")
+                # Convert from RGB to BGR for OpenCV processing
+                if frame.shape[2] == 3:  # If it's RGB
+                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                else:
+                    frame_bgr = frame
+                
+                # Calculate NDVI
+                ndvi_color, ndvi_raw = calculate_ndvi(frame_bgr)
+                
+                # Create ROS messages
+                msg_raw = bridge.cv2_to_imgmsg(frame_bgr, encoding="bgr8")
+                msg_raw.header.stamp = rospy.Time.now()
+                pub_raw.publish(msg_raw)
+                
+                msg_ndvi = bridge.cv2_to_imgmsg(ndvi_color, encoding="bgr8")
+                msg_ndvi.header.stamp = rospy.Time.now()
+                pub_ndvi.publish(msg_ndvi)
+                
+                # Log occasionally
+                if int(rospy.get_time()) % 10 == 0:
+                    rospy.loginfo("NoIR Camera publishing raw and NDVI images")
+                
+            except Exception as e:
+                rospy.logerr(f"Error capturing frame: {e}")
+            
+            rate.sleep()
         
-        rate.sleep()
-
-    cap.release()
+        # Clean up
+        picam2.close()
+        
+    except ImportError as e:
+        rospy.logerr(f"Failed to import picamera2: {e}")
+    except Exception as e:
+        rospy.logerr(f"Camera initialization failed: {e}")
 
 if __name__ == '__main__':
     try:
