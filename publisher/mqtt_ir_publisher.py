@@ -51,7 +51,14 @@ def main():
     mqtt_broker = rospy.get_param('~mqtt_broker', mac_mini_ip)
     mqtt_port = rospy.get_param('~mqtt_port', 1883)
 
-    mqtt_client = mqtt.Client("ir_publisher")
+    # Fix for paho-mqtt 2.0+ compatibility
+    try:
+        # For paho-mqtt 2.0+
+        mqtt_client = mqtt.Client("ir_publisher", callback_api_version=mqtt.CallbackAPIVersion.VERSION1)
+    except (AttributeError, TypeError):
+        # Fallback for older versions
+        mqtt_client = mqtt.Client("ir_publisher", protocol=mqtt.MQTTv311)
+    
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
     mqtt_client.connect(mqtt_broker, mqtt_port, 60)
