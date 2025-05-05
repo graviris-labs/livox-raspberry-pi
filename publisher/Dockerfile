@@ -33,9 +33,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-noetic-cv-bridge ros-noetic-image-transport ros-noetic-camera-info-manager \
     ros-noetic-compressed-image-transport \
     v4l-utils \
-    # Added for Raspberry Pi OS
-    python3-picamera2 \
-    && pip3 install paho-mqtt numpy opencv-python \
+    libcamera-dev libcamera0 \
+    && pip3 install paho-mqtt numpy opencv-python picamera2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the built libraries from the builder stage
