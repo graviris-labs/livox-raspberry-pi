@@ -55,13 +55,8 @@ def main():
     
     rospy.loginfo(f"Attempting to connect to MQTT broker at {mqtt_broker}:{mqtt_port}")
     
-    # Create MQTT client (with compatibility for various paho-mqtt versions)
-    try:
-        # Basic client creation with minimal arguments
-        mqtt_client = mqtt.Client("ir_publisher")
-    except Exception as e:
-        rospy.logerr(f"Failed to create MQTT client: {e}")
-        return
+    # Create MQTT client with paho-mqtt 1.0 compatible approach
+    mqtt_client = mqtt.Client()  # Using simplest form for maximum compatibility
     
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
